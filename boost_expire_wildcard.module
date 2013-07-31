@@ -1,0 +1,136 @@
+<?php
+/**
+ * @file
+ * Boost Expire Wildcard
+ */
+
+# @todo test if works with <front> as path
+#   it DOESN'T -- need to fix this!
+
+# this module exists because... wildcards don't work in conjunction with the 
+# expires module and the boost_expire_cache hook.
+#
+# so we're providing a way to remove boost paths (and wildcards) automatically
+#
+# need to test whether NOT providing a wildcard will still glob multiple files!
+
+# looked into this: http://drupal.org/node/1810936
+# but the issue was the expires module wasn't even letting us get to boost,
+# because it thought the url was invalid
+#
+# this avoids the url 'validation' and assumes we're entering in filepaths
+
+/**
+ * @file
+ * Integration with the rules module
+ */
+
+/**
+ * Implementation of hook_rules_action_info().
+ *
+ * @ingroup rules
+ */
+function boost_expire_wildcard_rules_action_info() {
+  return array(
+    'boost_expire_wildcard_flush_url' => array(
+      'base' => 'boost_expire_wildcard_rules_action_flush_url',
+      'label' => t('Clear wildcard Boost URL(s) from the page cache.'),
+      'parameter' => array(
+        'urls' => array(
+          'type' => 'text',
+          'label' => t('URL of page to clear'),
+          'description' => t('Relative paths, wildcards allowed, e.g: design-team/*. One Per line.'),
+        ),
+      ),
+      'group' => 'Expire',
+    ),
+  );
+}
+
+/**
+ * Expire a URL from the page cache.
+ */
+function boost_expire_wildcard_rules_action_flush_url($urls, $settings) {
+  $urls = preg_replace("/\r\n/", "\n", $urls);
+  $urls = explode("\n", $urls);
+  $urls = array_map('trim', $urls);
+  $urls = array_filter($urls);
+  $urls_parsed = array_map('parse_url', $urls);
+
+  // We assume these are relative paths.
+  if (!$path = boost_expire_wildcard_get_folder()) {
+    // Couldn't accurately determine the path to the statically cached Boost
+    // html files. Therefore, don't continue with file deletion.
+    return;
+  }
+
+  global $user;
+  $debug = ($user->uid == 1) ? TRUE : FALSE;
+  $debug = FALSE;
+
+  foreach ($urls_parsed as $url) {
+    // If the path isn't a wildcard, append _.html to ensure we find the single
+    // file for this path.
+    if (strpos($url['path'], '*') === FALSE) {
+      $url['path'] .= '_.html';
+    }
+
+    $files = glob_recursive($path . $url['path']);
+    if ($debug) {
+      dpm($files, "files for path [{$url['path']}]");
+    }
+
+    for ($i = 0; $i < count($files); $i++) {
+      $file = $files[$i];
+      if ($debug) {
+        dpm("DELETE FILE [$file]");
+        if (!file_exists($file)) {
+          dpm("Not found!");
+        }
+      }
+      if (file_exists($file) && is_file($file)) {
+        unlink($file);
+      }
+    }
+  }
+}
+
+
+/**
+ * Get the full path to Boost's statically cached html files.
+ *
+ * @return string
+ *   e.g., /var/www/docroot/cache/normal/my-domain.com/
+ */
+function boost_expire_wildcard_get_folder() {
+  $path_items = array(DRUPAL_ROOT);
+  $path_items[] = variable_get('boost_root_cache_dir', 'cache');
+  $path_items[] = variable_get('boost_normal_dir', 'normal');
+
+  // In validating the host name, we force numbers, letters and hyphens. 
+  // We don't distinguish between underscores allowed in subdomains but not
+  // host names. (This is quick and dirty...)
+  $host = trim(preg_replace("/[^0-9a-zA-Z\-\._]+/", '', $_SERVER['HTTP_HOST']));
+  if (empty($host)) {
+    return FALSE;
+  }
+  $path_items[] = $host;
+
+  return implode('/', $path_items) . '/';
+}
+
+
+// @see http://ca1.php.net/manual/en/function.glob.php#106595
+if (!function_exists('glob_recursive')) {
+  // Does not support flag GLOB_BRACE
+
+  function glob_recursive($pattern, $flags = 0) {
+    $files = glob($pattern, $flags);
+
+    foreach (glob(dirname($pattern).'/*', GLOB_ONLYDIR|GLOB_NOSORT) as $dir) {
+      $files = array_merge($files, glob_recursive($dir.'/'.basename($pattern), $flags));
+    }
+
+    return $files;
+  }
+}
