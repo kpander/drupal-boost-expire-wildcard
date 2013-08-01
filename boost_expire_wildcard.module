@@ -4,9 +4,6 @@
  * Boost Expire Wildcard
  */
 
-# @todo test if works with <front> as path
-#   it DOESN'T -- need to fix this!
-
 # this module exists because... wildcards don't work in conjunction with the 
 # expires module and the boost_expire_cache hook.
 #
@@ -68,10 +65,19 @@ function boost_expire_wildcard_rules_action_flush_url($urls, $settings) {
   $debug = ($user->uid == 1) ? TRUE : FALSE;
   $debug = FALSE;
 
+  if ($debug) {
+    dpm($urls_parsed, 'urls_parsed');
+  }
+
   foreach ($urls_parsed as $url) {
-    // If the path isn't a wildcard, append _.html to ensure we find the single
-    // file for this path.
-    if (strpos($url['path'], '*') === FALSE) {
+    if ($url['path'] === '<front>') {
+      // If this is the <front> page, set $url = '_.html' so we only find the
+      // single html file for the front page.
+      $url['path'] = '_.html';
+    }
+    elseif (strpos($url['path'], '*') === FALSE) {
+      // If the path isn't a wildcard, append _.html to ensure we find the single
+      // file for this path.
       $url['path'] .= '_.html';
     }
 
