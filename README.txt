@@ -47,12 +47,12 @@ http://invisiblethreads.com
 
 CHANGELOG
 =========
-v7.x-1.0, 2014-05-24, Kendall Anderson
+v7.x-1.0, 2013-05-24, Kendall Anderson
 - initial development of module
 
-v7.x-1.1, 2014-08-01, Kendall Anderson
+v7.x-1.1, 2013-08-01, Kendall Anderson
 
-v7.x-1.2, 2014-12-02, Kendall Anderson
+v7.x-1.2, 2013-12-02, Kendall Anderson
 - added boost_expire_wildcard_urls() function for external use
 - removed use of glob() when requesting non-wildcard paths for removal
 
