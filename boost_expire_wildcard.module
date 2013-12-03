@@ -45,13 +45,21 @@ function boost_expire_wildcard_rules_action_info() {
 }
 
 /**
- * Expire a URL from the page cache.
+ * Expire a set of URLs from the page cache, called from an Action.
  */
 function boost_expire_wildcard_rules_action_flush_url($urls, $settings) {
   $urls = preg_replace("/\r\n/", "\n", $urls);
   $urls = explode("\n", $urls);
+
+  boost_expire_wildcard_urls($urls);
+}
+
+/**
+ * Expire a set of URLs.
+ */
+function boost_expire_wildcard_urls($urls) {
   $urls = array_map('trim', $urls);
-  $urls = array_filter($urls);
+  $urls = array_filter($urls);  // Remove empty lines.
   $urls_parsed = array_map('parse_url', $urls);
 
   // We assume these are relative paths.
@@ -75,24 +83,57 @@ function boost_expire_wildcard_rules_action_flush_url($urls, $settings) {
       // single html file for the front page.
       $url['path'] = '_.html';
     }
-    elseif (strpos($url['path'], '*') === FALSE) {
-      // If the path isn't a wildcard, append _.html to ensure we find the single
-      // file for this path.
+
+    
+    $has_wildcard = TRUE;
+    if (strpos($url['path'], '*') === FALSE) {
+      $has_wildcard = FALSE;
+    }
+
+    if (strpos($url['path'], '*') == strlen($url['path']) - 1) {
+      $has_end_wildcard = TRUE;
+    }
+    else {
+      // If there isn't a wildcard on the end of the path, add an html file
+      // extension to ensure we only get files.
+      $has_end_wildcard = FALSE;
       $url['path'] .= '_.html';
     }
 
-    $files = glob_recursive($path . $url['path']);
-    if ($debug) {
-      dpm($files, "files for path [{$url['path']}]");
+
+
+    $files = array();
+
+    if ($has_wildcard) {
+      // If there is only 1 wildcard, and it's at the end of the path, we can
+      // trash the entire folder.
+      if (strpos($url['path'], '*') == strlen($url['path']) - 1) {
+        $folder = $path . $url['path'];
+        $folder = rtrim($folder, '*/');
+        boost_expire_wildcard_trash_folder($folder);
+      }
+      else {
+        $files = glob_recursive($path . $url['path']);
+        if ($debug) {
+          dpm($files, 'files from glob for ' . $path . $url['path']);
+          dpm($files, "files for path [$path][{$url['path']}]");
+        }
+      }
+    }
+    else {
+      $files = array($path . $url['path']);
     }
 
-    for ($i = 0; $i < count($files); $i++) {
-      $file = $files[$i];
-      if ($debug) {
+    if (!count($files)) {
+      continue;
+    }
+
+    // Work backwards from the last to the first, so we affect subfolders
+    // before parents.
+    while (count($files)) {
+      $file = array_pop($files);
+      if ($debug && is_file($file)) {
         dpm("DELETE FILE [$file]");
-        if (!file_exists($file)) {
-          dpm("Not found!");
-        }
       }
       if (file_exists($file) && is_file($file)) {
         unlink($file);
@@ -100,6 +141,7 @@ function boost_expire_wildcard_rules_action_flush_url($urls, $settings) {
     }
   }
 }
+
 
 
 /**
@@ -138,5 +180,42 @@ if (!function_exists('glob_recursive')) {
     }
 
     return $files;
+  }
+}
+
+
+
+/**
+ * Remove all .html files from the given folder.
+ *
+ * Yeah, this is dangerous. The only limitation we have within the function
+ * is that we only delete files ending in .html, and we add a rudimentary
+ * check to confirm that it looks like the file is within a Boost folder.
+ *
+ * In a worst-case scenario, this shouldn't do any damage if the $path was 
+ * given maliciously.
+ */
+function boost_expire_wildcard_trash_folder($path) {
+  // Ensure the path has the Boost cache folder within it.
+  $path_items = array(
+    variable_get('boost_root_cache_dir', 'cache'),
+    variable_get('boost_normal_dir', 'normal'),
+  );
+  if (!strpos($path, implode('/', $path_items))) {
+    drupal_set_message("FAILED attempting to cleanup cached data files for a city. This situation should never occur -- investigate!", 'error');
+    return;
+  }
+
+  if (!file_exists($path)) {
+    return;
+  }
+
+  $directory = new RecursiveDirectoryIterator($path);
+  foreach (new RecursiveIteratorIterator($directory) as $filename=>$current) {
+    $file = $current->getFileName();
+    if (preg_match("/\.html$/", $file)) {
+      #dpm("delete cached boost subdir file: $filename");
+      unlink($filename);
+    }
   }
 }

@@ -1,9 +1,11 @@
 README.txt
 ==========
-BOOST EXPIRE WILDCARD provides an Action for the Rules module.
+BOOST EXPIRE WILDCARD exposes its functionality in 2 ways:
+  1. As an Action for the Rules module.
+  2. As a public function.
 
-It deletes static cache HTML files created by Boost, and allows wildcard
-specification. This module exists because:
+The module deletes static cache HTML files created by Boost, and allows a 
+wildcard specification. This module exists because:
 - Wildcards don't work in conjunction with the Expires module
 - Wildcards don't work with the boost_expire_cache() hook
 
@@ -12,24 +14,29 @@ where the url can't be validated but is in fact valid, or where you'd
 want to remove a whole subfolder (or pattern) of files. That's where
 this module is useful.
 
+This functionality can also be accessed via: boost_expire_wildcard_urls($urls)
+
 
 WHY USE THIS MODULE?
 ====================
-
-
-HOW IT WORKS
-============
+- You want to delete many statically cached Boost files at once.
+- You want full control over Boost cache invalidation.
 
 
 INSTALLATION
 ============
-After installation in Drupal, this module will do nothing.
+Install like any other Drupal module. This module does nothing by itself. It
+provides a new action within Rules.
 
-This module provides a new action within Rules.
 
+ISSUES
+======
+Wildcard matching makes use of the glob() function. This could have a
+performance impact on some servers, and hasn't been heavily tested yet.
 
-CONFIGURATION
-=============
+Some tests with DirectoryIterator vs glob() have been performed, but the 
+difference in speed (with a directory tree of 10,000 files) hasn't been
+significant yet.
 
 
 AUTHOR/MAINTAINER
@@ -40,8 +47,18 @@ http://invisiblethreads.com
 
 CHANGELOG
 =========
+v7.x-1.0, 2014-05-24, Kendall Anderson
+- initial development of module
+
+v7.x-1.1, 2014-08-01, Kendall Anderson
+
+v7.x-1.2, 2014-12-02, Kendall Anderson
+- added boost_expire_wildcard_urls() function for external use
+- removed use of glob() when requesting non-wildcard paths for removal
+
 
 
 TODO
 ====
-- need to test whether NOT providing a wildcard will still glob multiple files!
+- better documentation!
+- integrate debugging into watchdog

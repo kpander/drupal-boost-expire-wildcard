@@ -1,8 +1,8 @@
 name = "Boost Expire Wildcard"
-description = "Provides a Rules action to expire statically cached pages (by Boost), using wildcard urls."
+description = "Provides a Rules action (and function) to expire statically cached pages (by Boost), using wildcard urls."
 package = "Performance and scalability"
 
 dependencies[] = boost
 
 core = 7.x
-version = "7.x-1.1"
+version = "7.x-1.2"
