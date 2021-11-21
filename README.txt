@@ -1,3 +1,9 @@
+NOTE: This repo is a legacy Drupal 7.x module and is no longer maintained or considered relevant. It was originally hosted here:
+
+  - https://www.drupal.org/sandbox/kpander/2054879
+
+---
+
 README.txt
 ==========
 BOOST EXPIRE WILDCARD exposes its functionality in 2 ways:
